@@ -117,5 +117,12 @@
     "title": "Gliobastoma and Lower Grade Glioma Data Explorer",
     "section": "Limitations",
     "text": "Limitations\nBecause this is an observational study, it cannot establish causality between treatment and outcome. There is some missing data for certain variables regarding treatment modalities beyond radiation therapy and prognostically important molecular markers like IDH mutations and 1p/19q co-deletions)\nThis data is also not fully up-to-date with the most current treatment strategies like TTFields and Laser Interstitial Thermal Therapy. There may also be some selection bias because the TCGA patients may not fully represent the general glioma population.\nTo conclude- This analysis provides evidence for the very distinct biological and clinical characteristics of GBM versus LGG, and shows the substantial survival benefit of radiation therapy especially in GBM, and confirms age as an independent prognostic factor across the glioma subtypes."
+  },
+  {
+    "objectID": "references.html",
+    "href": "references.html",
+    "title": "References",
+    "section": "",
+    "text": "[1] Sipos D, Raposa BL, Freihat O, Simon M, Mekis N, Cornacchione P, Kovács Á. Glioblastoma: Clinical Presentation, Multidisciplinary Management, and Long-Term Outcomes. Cancers (Basel). 2025 Jan 5;17(1):146. doi: 10.3390/cancers17010146. PMID: 39796773; PMCID: PMC11719842.\n[2] Fernandes C, Costa A, Osório L, Lago RC, Linhares P, Carvalho B, Caeiro C. Current Standards of Care in Glioblastoma Therapy. In: De Vleeschouwer S, editor. Glioblastoma [Internet]. Brisbane (AU): Codon Publications; 2017 Sep 27. Chapter 11. PMID: 29251860.\n[3] Goldman, M.J., Craft, B., Hastie, M. et al. Visualizing and interpreting cancer genomics data via the Xena platform. Nat Biotechnol (2020). https://doi.org/10.1038/s41587-020-0546-8"
   }
 ]
