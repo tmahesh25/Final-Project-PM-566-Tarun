@@ -4,7 +4,7 @@
     "href": "data.html",
     "title": "About the Data",
     "section": "",
-    "text": "This page will describe where the data comes from and what each variable means"
+    "text": "All analyses used clinical data from the TCGA lower grade glioma and glioblastoma (GBMLGG) cohort, downloaded via the UCSC Xena browser. From Xena, I used the harmonised clinical matrix for the GBMLGG cohort, which provides one row per tumour sample with demographic, histologic, treatment, and follow-up information linked to each TCGA sample barcode.\nThe raw dataset contained 1,148 tumour samples, but for this project, I focused on adult diffuse gliomas classified in the clinical data as either glioblastoma multiforme or brain lower grade glioma. Samples with other diagnoses were retained in the dataset for the descriptive summaries but excluded from the main survival comparisons, which concentrated only on GBM vs LGG. I also required that samples have non missing overall survival time and vital status, and that follow up time is positive. After all these filters, the main survival analysis subset had several hundred patients with either GBM or LGG and usable survival data."
   },
   {
     "objectID": "data.html#lower-grade-gliomas-are-diagnosed-earlier-than-glioblastoma-multiforme",
