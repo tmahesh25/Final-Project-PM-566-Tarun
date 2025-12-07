@@ -1,0 +1,312 @@
+---
+title: "About the Data"
+format: html
+---
+
+# Data Source
+
+This page will describe where the data comes from and what each variable means
+
+# Packages and Setup
+
+```{r message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library(janitor)
+library(DT)
+library(plotly)
+library(dplyr)
+library(kableExtra)
+```
+
+# Data Import
+
+```{r, message=FALSE, warning=FALSE}
+
+gbm_data_url <- "https://tcga.xenahubs.net/download/TCGA.GBMLGG.sampleMap/GBMLGG_clinicalMatrix"
+
+gbm_raw <- read.delim(gbm_data_url, check.names = FALSE)
+```
+
+# Data Cleaning
+
+```{r, message=FALSE, warning=FALSE}
+
+gbm_cleaned <- gbm_raw |>
+  clean_names() |>
+  mutate(
+    age    = as.numeric(age_at_initial_pathologic_diagnosis),
+    gender = factor(gender),
+    primary_disease = primary_disease,
+    histology_group = case_when(
+      primary_disease == "glioblastoma multiforme"    ~ "GBM",
+      primary_disease == "brain lower grade glioma"   ~ "LGG",
+      TRUE                                            ~ "Other"
+    ),
+    histology = histological_type,
+    grade     = neoplasm_histologic_grade,
+    os_time_days = case_when(
+      !is.na(days_to_death) ~ as.numeric(days_to_death),
+      !is.na(days_to_last_followup) ~ as.numeric(days_to_last_followup),
+      TRUE ~ NA_real_
+    ),
+    os_time_years = os_time_days / 365.25,
+    os_event = case_when(
+      vital_status %in% c("Dead", "DECEASED") ~ 1,
+      vital_status %in% c("Alive", "LIVING") ~ 0,
+      TRUE ~ NA_real_
+    ),
+    radiation_therapy = case_when(
+      radiation_therapy == "YES" ~ "Yes",
+      radiation_therapy == "NO"  ~ "No",
+      TRUE ~ NA_character_
+    ),
+    radiation_therapy = factor(radiation_therapy),
+
+    targeted_molecular_therapy = case_when(
+      targeted_molecular_therapy == "YES" ~ "Yes",
+      targeted_molecular_therapy == "NO"  ~ "No",
+      TRUE ~ NA_character_
+    ),
+    targeted_molecular_therapy = factor(targeted_molecular_therapy),
+
+    additional_pharmaceutical_therapy = case_when(
+      additional_pharmaceutical_therapy == "YES" ~ "Yes",
+      additional_pharmaceutical_therapy == "NO"  ~ "No",
+      TRUE ~ NA_character_
+    ),
+    additional_pharmaceutical_therapy = factor(additional_pharmaceutical_therapy),
+    seizure_history       = factor(seizure_history),
+    headache_history      = factor(headache_history),
+    mental_status_changes = factor(mental_status_changes)
+  ) |>
+  select(
+    sample_id, patient_id, age, gender, histology, histology_group, grade, os_time_days,
+    os_time_years,os_event, radiation_therapy, targeted_molecular_therapy, additional_pharmaceutical_therapy, seizure_history, headache_history, mental_status_changes, tumor_location, tumor_tissue_site
+  )
+
+gbm_cleaned_survival <- gbm_cleaned |>
+  filter(
+    !is.na(age),
+    !is.na(histology_group),
+    !is.na(os_time_days),
+    !is.na(os_event)
+  )
+```
+
+# Data Definitions
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+var_dict <- tribble(
+  ~Variable,                       ~Type,          ~Definition,
+  "sample_id",                     "ID (character)", "TCGA sample barcode (unique per tumor sample)",
+  "patient_id",                    "ID (character)", "TCGA patient identifier (one patient can have multiple samples)",
+  "age",                           "numeric",     "Age at initial pathologic diagnosis (years)",
+  "gender",                        "factor",      "Reported sex of the patient",
+  "histology",                     "character",   "Original TCGA histological diagnosis (`histological_type`; often missing or heterogeneous)",
+  "histology_group",               "factor",      "Grouping based on `_primary_disease`: GBM (glioblastoma multiforme), LGG (brain lower grade glioma)",
+  "grade",                         "character",   "Neoplasm histologic grade; mainly available for lower grade gliomas",
+  "os_time_days",                  "numeric",     "Overall survival time in days, using `days_to_death` when available or `days_to_last_followup` otherwise",
+  "os_time_years",                 "numeric",     "Overall survival time in years (`os_time_days / 365.25`)",
+  "os_event",                      "numeric (0/1)", "Overall survival event indicator (1 = death, 0 = alive at last follow-up, from `vital_status`)",
+  "radiation_therapy",             "factor",      "Whether radiation therapy was recorded (Yes/No)",
+  "targeted_molecular_therapy",    "factor",      "Whether targeted molecular therapy was recorded (Yes/No)",
+  "additional_pharmaceutical_therapy","factor",   "Whether additional systemic pharmaceutical therapy was recorded (Yes/No)",
+  "seizure_history",               "factor",      "History of seizures at or before presentation",
+  "headache_history",              "factor",      "History of headaches at or before presentation",
+  "mental_status_changes",         "factor",      "History of mental status changes at or before presentation",
+  "tumor_location",                "character",   "Descriptive anatomic location of the tumor",
+  "tumor_tissue_site",             "character",   "Broader tissue site category for the tumor"
+)
+
+var_dict |>
+  kbl(
+    caption = "Key variables used in the analysis: names, types, and definitions.",
+    align = "ccc"
+  ) |>
+  kable_styling(
+    full_width = FALSE,
+    bootstrap_options = c("striped", "hover"),
+    position = "center"
+  ) |>
+  column_spec(
+    1:2,
+    extra_css = "font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; text-align:center;"
+  ) |>
+  column_spec(1, bold = TRUE) |>
+  column_spec(3, extra_css = "font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; text-align:left;")
+
+```
+
+# Exploratory Analysis
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+numeric_summary <- gbm_cleaned |>
+  summarize(
+    "Number of Patients"          = n(),
+    "Mean Patient Age"   = mean(age, na.rm = TRUE),
+    "Standard Deviation in Patient Age"     = sd(age, na.rm = TRUE),
+    "Minimum Age"    = min(age, na.rm = TRUE),
+    "Age- First Quartile"     = quantile(age, 0.25, na.rm = TRUE),
+    "Median Age" = median(age, na.rm = TRUE),
+    "Age- Third Quartile"     = quantile(age, 0.75, na.rm = TRUE),
+    "Maximum Age"    = max(age, na.rm = TRUE),
+    "Mean Overall Survival"   = mean(os_time_years, na.rm = TRUE),
+    "Median Overall Survival" = median(os_time_years, na.rm = TRUE)
+  ) |>
+  pivot_longer(everything(), names_to = "Statistic", values_to = "Value")
+
+numeric_summary |>
+  kbl(
+    caption = "Summary statistics for age and overall survival time (in years) for patients in the UCSC Dataset",
+    digits = 2,
+    col.names = c("Statistic", "Value"),
+    align = "cc"
+  ) |>
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"), position = "center")
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+summarize_factor <- function(data, var) {
+  data |>
+    count({{ var }}) |>
+    mutate(
+      variable   = rlang::as_name(ensym(var)),
+      proportion = n / sum(n)
+    ) |>
+    rename(level = {{ var }})
+}
+
+cat_summary <- bind_rows(
+  summarize_factor(gbm_cleaned, histology_group),
+  summarize_factor(gbm_cleaned, grade),
+  summarize_factor(gbm_cleaned, gender),
+  summarize_factor(gbm_cleaned, radiation_therapy),
+  summarize_factor(gbm_cleaned, additional_pharmaceutical_therapy),
+  summarize_factor(gbm_cleaned, seizure_history),
+  summarize_factor(gbm_cleaned, headache_history),
+  summarize_factor(gbm_cleaned, mental_status_changes)
+) |>
+  mutate(
+    # Convert to character first
+    level = as.character(level),
+    # Treat NA or "" as a single category
+    level = case_when(
+      is.na(level) | level == "" ~ "Missing or blank",
+      TRUE ~ level
+    ),
+    proportion = scales::percent(proportion, accuracy = 0.1)
+  ) |>
+  arrange(variable, desc(n)) |>
+  select(variable, level, n, proportion)
+
+cat_summary |>
+  kbl(
+    caption   = "Counts and proportions for key categorical variables.",
+    col.names = c("Variable", "Level", "Count", "Proportion of Total"),
+    align     = "cccc"
+  ) |>
+  kable_styling(
+    full_width        = FALSE,
+    bootstrap_options = c("hover"),  # remove "striped"
+    position          = "center"
+  ) |>
+  # Center all columns
+  column_spec(1:4, extra_css = "text-align:center;") |>
+  # Group by Variable, but without grey background bands
+  collapse_rows(
+    columns  = 1,
+    valign   = "top",
+  )
+
+```
+
+## Lower Grade Gliomas are diagnosed earlier than Glioblastoma Multiforme
+
+The mean age of diagnosis of LGG seems to fall around \~40, while the mean age of diagnosis of GBM is closer to \~60. The late-age of diagnosis combined with the aggressiveness of GBM spells disaster for most patients, which contributes to the low survival rates in GBM.
+
+```{r, message=FALSE, warning=FALSE}
+gbm_cleaned |>
+  ggplot(aes(x = age, fill = histology_group)) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 40) +
+  labs(
+    title = "Age at diagnosis separated by histology group",
+    x = "Age at diagnosis in years",
+    y = "Number of patients",
+    fill = "Histology group"
+  ) +
+  theme_minimal()
+```
+
+## The Dataset has a near-equal representation of both GBM and LGG
+
+The dataset has data for close to \~600 GBM patients and \~500 LGG patients.
+
+```{r, message=FALSE, warning=FALSE}
+gbm_cleaned |>
+  ggplot(aes(x = histology_group)) +
+  geom_bar() +
+  labs(
+    title = "Distribution of histology groups in the dataset",
+    x = "Histology group",
+    y = "Number of patients"
+  ) +
+  theme_minimal()
+```
+
+## Glioblastoma Mutiforme is not (canonically) graded
+
+Lower Grade Gliomas can be stratified in grades 2 or 3, while GBM is typically considered a "Grade 4" glioma, which explains why a grading system is not required for GBM. The LGG data has one entry where there is a discrepancy in grading, but this discrepancy is negligible compared to the size of the LGG cohort.
+
+```{r, message=FALSE, warning=FALSE}
+gbm_cleaned |>
+  filter(!is.na(grade)) |>
+  ggplot(aes(x = histology_group, fill = grade)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Grade distribution within the histology groups",
+    x = "Histology group",
+    y = "Proportion of patients",
+    fill = "Grade"
+  ) +
+  theme_minimal()
+```
+
+## Radiation therapy is used to treat GBM more often that for LGG
+
+Radiation therapy, which causes cytotoxic effects in cancer cells by damaging DNA and generating free radicals (along with the combined effect of activating the immune system), is more commonly used for the treatment of GBM than LGG. Irrespective, radiation therapy is used more often than not, in both GBM and LGG.
+
+```{r, message=FALSE, warning=FALSE}
+gbm_cleaned |>
+  filter(!is.na(radiation_therapy)) |>
+  ggplot(aes(x = histology_group, fill = radiation_therapy)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Radiation therapy usage according to histology group",
+    x = "Histology group",
+    y = "Proportion of patients",
+    fill = "Radiation therapy"
+  ) +
+  theme_minimal()
+```
+
+## Interactive Data Viewer
+
+This interactive table shows the key variables used for the analysis.
+
+```{r, message=FALSE, warning=FALSE}
+gbm_cleaned |>
+  select(sample_id,patient_id,age,gender,histology_group,grade,os_time_years,os_event,radiation_therapy,additional_pharmaceutical_therapy,seizure_history,headache_history, mental_status_changes
+  ) |>
+  datatable(
+    extensions = "Buttons",
+    options = list(
+      pageLength = 10, dom = "Bfrtip",
+      buttons = c("copy", "csv", "excel", "pdf", "print")
+    ),
+    caption = "Interactive table of the key variables in the cleaned dataset"
+  )
+```

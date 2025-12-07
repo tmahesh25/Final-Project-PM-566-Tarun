@@ -1,0 +1,100 @@
+[
+  {
+    "objectID": "data.html",
+    "href": "data.html",
+    "title": "About the Data",
+    "section": "",
+    "text": "This page will describe where the data comes from and what each variable means"
+  },
+  {
+    "objectID": "data.html#lower-grade-gliomas-are-diagnosed-earlier-than-glioblastoma-multiforme",
+    "href": "data.html#lower-grade-gliomas-are-diagnosed-earlier-than-glioblastoma-multiforme",
+    "title": "About the Data",
+    "section": "Lower Grade Gliomas are diagnosed earlier than Glioblastoma Multiforme",
+    "text": "Lower Grade Gliomas are diagnosed earlier than Glioblastoma Multiforme\nThe mean age of diagnosis of LGG seems to fall around ~40, while the mean age of diagnosis of GBM is closer to ~60. The late-age of diagnosis combined with the aggressiveness of GBM spells disaster for most patients, which contributes to the low survival rates in GBM.\n\n\nCode\ngbm_cleaned |&gt;\n  ggplot(aes(x = age, fill = histology_group)) +\n  geom_histogram(position = \"identity\", alpha = 0.5, bins = 40) +\n  labs(\n    title = \"Age at diagnosis separated by histology group\",\n    x = \"Age at diagnosis in years\",\n    y = \"Number of patients\",\n    fill = \"Histology group\"\n  ) +\n  theme_minimal()"
+  },
+  {
+    "objectID": "data.html#the-dataset-has-a-near-equal-representation-of-both-gbm-and-lgg",
+    "href": "data.html#the-dataset-has-a-near-equal-representation-of-both-gbm-and-lgg",
+    "title": "About the Data",
+    "section": "The Dataset has a near-equal representation of both GBM and LGG",
+    "text": "The Dataset has a near-equal representation of both GBM and LGG\nThe dataset has data for close to ~600 GBM patients and ~500 LGG patients.\n\n\nCode\ngbm_cleaned |&gt;\n  ggplot(aes(x = histology_group)) +\n  geom_bar() +\n  labs(\n    title = \"Distribution of histology groups in the dataset\",\n    x = \"Histology group\",\n    y = \"Number of patients\"\n  ) +\n  theme_minimal()"
+  },
+  {
+    "objectID": "data.html#glioblastoma-mutiforme-is-not-canonically-graded",
+    "href": "data.html#glioblastoma-mutiforme-is-not-canonically-graded",
+    "title": "About the Data",
+    "section": "Glioblastoma Mutiforme is not (canonically) graded",
+    "text": "Glioblastoma Mutiforme is not (canonically) graded\nLower Grade Gliomas can be stratified in grades 2 or 3, while GBM is typically considered a “Grade 4” glioma, which explains why a grading system is not required for GBM. The LGG data has one entry where there is a discrepancy in grading, but this discrepancy is negligible compared to the size of the LGG cohort.\n\n\nCode\ngbm_cleaned |&gt;\n  filter(!is.na(grade)) |&gt;\n  ggplot(aes(x = histology_group, fill = grade)) +\n  geom_bar(position = \"fill\") +\n  scale_y_continuous(labels = scales::percent) +\n  labs(\n    title = \"Grade distribution within the histology groups\",\n    x = \"Histology group\",\n    y = \"Proportion of patients\",\n    fill = \"Grade\"\n  ) +\n  theme_minimal()"
+  },
+  {
+    "objectID": "data.html#radiation-therapy-is-used-to-treat-gbm-more-often-that-for-lgg",
+    "href": "data.html#radiation-therapy-is-used-to-treat-gbm-more-often-that-for-lgg",
+    "title": "About the Data",
+    "section": "Radiation therapy is used to treat GBM more often that for LGG",
+    "text": "Radiation therapy is used to treat GBM more often that for LGG\nRadiation therapy, which causes cytotoxic effects in cancer cells by damaging DNA and generating free radicals (along with the combined effect of activating the immune system), is more commonly used for the treatment of GBM than LGG. Irrespective, radiation therapy is used more often than not, in both GBM and LGG.\n\n\nCode\ngbm_cleaned |&gt;\n  filter(!is.na(radiation_therapy)) |&gt;\n  ggplot(aes(x = histology_group, fill = radiation_therapy)) +\n  geom_bar(position = \"fill\") +\n  scale_y_continuous(labels = scales::percent) +\n  labs(\n    title = \"Radiation therapy usage according to histology group\",\n    x = \"Histology group\",\n    y = \"Proportion of patients\",\n    fill = \"Radiation therapy\"\n  ) +\n  theme_minimal()"
+  },
+  {
+    "objectID": "data.html#interactive-data-viewer",
+    "href": "data.html#interactive-data-viewer",
+    "title": "About the Data",
+    "section": "Interactive Data Viewer",
+    "text": "Interactive Data Viewer\nThis interactive table shows the key variables used for the analysis.\n\n\nCode\ngbm_cleaned |&gt;\n  select(sample_id,patient_id,age,gender,histology_group,grade,os_time_years,os_event,radiation_therapy,additional_pharmaceutical_therapy,seizure_history,headache_history, mental_status_changes\n  ) |&gt;\n  datatable(\n    extensions = \"Buttons\",\n    options = list(\n      pageLength = 10, dom = \"Bfrtip\",\n      buttons = c(\"copy\", \"csv\", \"excel\", \"pdf\", \"print\")\n    ),\n    caption = \"Interactive table of the key variables in the cleaned dataset\"\n  )"
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Gliobastoma and Lower Grade Glioma Data Explorer",
+    "section": "",
+    "text": "This is a placeholder for the main report.\nLater, this page will contain the Introduction, Methods, Results, and Conclusion."
+  },
+  {
+    "objectID": "index.html#gbm-is-characterized-by-a-later-diagnosis-age-and-poorer-overall-survival",
+    "href": "index.html#gbm-is-characterized-by-a-later-diagnosis-age-and-poorer-overall-survival",
+    "title": "Gliobastoma and Lower Grade Glioma Data Explorer",
+    "section": "GBM is characterized by a later diagnosis age and poorer overall survival",
+    "text": "GBM is characterized by a later diagnosis age and poorer overall survival\n\n\nCode\nscatter_data &lt;- gbm_cleaned_survival |&gt;\n  mutate(\n    histology_group = factor(histology_group, levels = c(\"LGG\", \"GBM\"))\n  )\n\np_age_surv &lt;- ggplot(scatter_data,\n                     aes(x = age,\n                         y = os_time_years,\n                         color = histology_group,\n                         text = paste0(\n                           \"Sample: \", sample_id,\n                           \"&lt;br&gt;Histology: \", histology_group,\n                           \"&lt;br&gt;Age: \", round(age, 1), \" years\",\n                           \"&lt;br&gt;OS: \", round(os_time_years, 2), \" years\",\n                           \"&lt;br&gt;Radiation: \", radiation_therapy,\n                           \"&lt;br&gt;Event: \", ifelse(os_event == 1, \"Death\", \"Censored\")\n                         ))) +\n  geom_point(alpha = 0.6) +\n  scale_color_manual(values = histology_cols) +\n  labs(\n    title = \"Age at Diagnosis vs. Overall Survival\",\n    x = \"Age at diagnosis (in years)\",\n    y = \"Overall survival (in years)\",\n    color = \"Histology group\"\n  ) +\n  theme_minimal()\n\nggplotly(p_age_surv, tooltip = \"text\")"
+  },
+  {
+    "objectID": "index.html#undergoing-radiation-therapy-is-associated-with-better-overall-survival",
+    "href": "index.html#undergoing-radiation-therapy-is-associated-with-better-overall-survival",
+    "title": "Gliobastoma and Lower Grade Glioma Data Explorer",
+    "section": "Undergoing radiation therapy is associated with better overall survival",
+    "text": "Undergoing radiation therapy is associated with better overall survival\n\n\nCode\nscatter_rad &lt;- gbm_cleaned_survival |&gt;\n  filter(\n    histology_group %in% c(\"GBM\", \"LGG\"),\n    !is.na(radiation_therapy)\n  )\n\np_age_rad &lt;- ggplot(\n  scatter_rad,\n  aes(\n    x     = age,\n    y     = os_time_years,\n    color = radiation_therapy,\n    text  = paste0(\n      \"Sample: \", sample_id,\n      \"&lt;br&gt;Histology: \", histology_group,\n      \"&lt;br&gt;Radiation: \", radiation_therapy,\n      \"&lt;br&gt;Age: \", round(age, 1), \" years\",\n      \"&lt;br&gt;OS: \", round(os_time_years, 2), \" years\",\n      \"&lt;br&gt;Event: \", ifelse(os_event == 1, \"Death\", \"Censored\")\n    )\n  )\n) +\n  geom_point(alpha = 0.6) +\n  facet_wrap(~ histology_group) +\n  labs(\n    title = \"Age vs overall survival by radiation therapy within GBM and LGG\",\n    x     = \"Age at diagnosis (years)\",\n    y     = \"Overall survival (years)\",\n    color = \"Radiation therapy\"\n  ) +\n  theme_minimal()\n\nggplotly(p_age_rad, tooltip = \"text\")"
+  },
+  {
+    "objectID": "index.html#gbm-has-a-much-lower-survival-probability-than-lgg",
+    "href": "index.html#gbm-has-a-much-lower-survival-probability-than-lgg",
+    "title": "Gliobastoma and Lower Grade Glioma Data Explorer",
+    "section": "GBM has a much lower survival probability than LGG",
+    "text": "GBM has a much lower survival probability than LGG\n\n\nCode\nkm_fit &lt;- survfit(Surv(os_time_years, os_event) ~ histology_group,\n                  data = gbm_cleaned_survival)\n\nkm_tidy &lt;- broom::tidy(km_fit) |&gt;\n  mutate(\n    histology_group = str_replace(strata, \"histology_group=\", \"\")\n  )\n\np_km &lt;- ggplot(km_tidy,\n               aes(x = time,\n                   y = estimate,\n                   color = histology_group,\n                   group = histology_group,\n                   text = paste0(\n                     \"Time: \", round(time, 2), \" years\",\n                     \"&lt;br&gt;Survival probability: \", round(estimate, 3),\n                     \"&lt;br&gt;Histology: \", histology_group,\n                     \"&lt;br&gt;At risk: \", n.risk,\n                     \"&lt;br&gt;Events: \", n.event\n                   ))) +\n  geom_step(size = 0.5, alpha = 0.9) +      \n  geom_point(size = 0.8, alpha = 0.9) +  \n  scale_color_manual(values = histology_cols) +\n  labs(\n    title = \"Kaplan–Meier survival curves for GBM vs LGG\",\n    x = \"Time since diagnosis (years)\",\n    y = \"Estimated survival probability\",\n    color = \"Histology group\"\n  ) +\n  theme_minimal()\n\nggplotly(p_km, tooltip = \"text\")"
+  },
+  {
+    "objectID": "index.html#radiation-therapy-has-a-positive-impact-on-survival-in-gbm",
+    "href": "index.html#radiation-therapy-has-a-positive-impact-on-survival-in-gbm",
+    "title": "Gliobastoma and Lower Grade Glioma Data Explorer",
+    "section": "Radiation therapy has a positive impact on survival in GBM",
+    "text": "Radiation therapy has a positive impact on survival in GBM\n\n\nCode\nsurv_rad &lt;- gbm_cleaned_survival |&gt;\n  filter(\n    histology_group %in% c(\"GBM\", \"LGG\"),\n    !is.na(radiation_therapy)\n  )\n\nsurv_gbm &lt;- surv_rad |&gt; filter(histology_group == \"GBM\")\nsurv_lgg &lt;- surv_rad |&gt; filter(histology_group == \"LGG\")\n\nlogrank_gbm &lt;- survdiff(Surv(os_time_years, os_event) ~ radiation_therapy,\n                        data = surv_gbm)\nlogrank_lgg &lt;- survdiff(Surv(os_time_years, os_event) ~ radiation_therapy,\n                        data = surv_lgg)\n\np_gbm &lt;- 1 - pchisq(logrank_gbm$chisq, df = length(logrank_gbm$n) - 1)\np_lgg &lt;- 1 - pchisq(logrank_lgg$chisq, df = length(logrank_lgg$n) - 1)\n\nsubtitle_label &lt;- paste0(\n  \"GBM log-rank p = \", sprintf(\"%.2e\", p_gbm),\n  \" · LGG log-rank p = \", sprintf(\"%.2e\", p_lgg)\n)\n\nkm_gbm &lt;- survfit(Surv(os_time_years, os_event) ~ radiation_therapy, data = surv_gbm)\nkm_lgg &lt;- survfit(Surv(os_time_years, os_event) ~ radiation_therapy, data = surv_lgg)\n\nkm_gbm_tidy &lt;- tidy(km_gbm) |&gt;\n  mutate(histology_group = \"GBM\")\n\nkm_lgg_tidy &lt;- tidy(km_lgg) |&gt;\n  mutate(histology_group = \"LGG\")\n\nkm_rad_tidy &lt;- bind_rows(km_gbm_tidy, km_lgg_tidy)\n\np_km_rad &lt;- ggplot(\n  km_rad_tidy,\n  aes(\n    x     = time,\n    y     = estimate,\n    color = strata, \n    group = strata,\n    text  = paste0(\n      \"Time: \", round(time, 2), \" years\",\n      \"&lt;br&gt;Survival: \", round(estimate, 3),\n      \"&lt;br&gt;Histology: \", histology_group,\n      \"&lt;br&gt;Radiation: \", sub(\"radiation_therapy=\", \"\", strata),\n      \"&lt;br&gt;At risk: \", n.risk,\n      \"&lt;br&gt;Events: \", n.event\n    )\n  )\n) +\n  geom_step(size = 1.2, alpha = 0.9) +\n  geom_point(size = 0.7, alpha = 0.9) +\n  facet_wrap(~ histology_group) +\n  scale_color_discrete(name = \"Radiation group\",\n                       labels = ~sub(\"radiation_therapy=\", \"\", .)) +\n  labs(\n    title    = \"Survival by radiation therapy within GBM and LGG\",\n    subtitle = subtitle_label,\n    x        = \"Time since diagnosis (years)\",\n    y        = \"Estimated survival probability\"\n  ) +\n  theme_minimal()\n\nggplotly(p_km_rad, tooltip = \"text\")"
+  },
+  {
+    "objectID": "index.html#the-median-overall-survival-for-gbm-increases-dramatically-when-radiation-therapy-is-used",
+    "href": "index.html#the-median-overall-survival-for-gbm-increases-dramatically-when-radiation-therapy-is-used",
+    "title": "Gliobastoma and Lower Grade Glioma Data Explorer",
+    "section": "The median overall survival for GBM increases dramatically when radiation therapy is used",
+    "text": "The median overall survival for GBM increases dramatically when radiation therapy is used\n\n\nCode\nsurv_summary &lt;- gbm_cleaned_survival |&gt;\n  mutate(\n    radiation_therapy = fct_explicit_na(radiation_therapy, na_level = \"Missing\")\n  ) |&gt;\n  group_by(histology_group, radiation_therapy) |&gt;\n  summarize(\n    n_patients   = n(),\n    median_os    = median(os_time_years, na.rm = TRUE),\n    mean_os      = mean(os_time_years, na.rm = TRUE),\n    events       = sum(os_event == 1, na.rm = TRUE),\n    event_rate   = events / n_patients,\n    .groups = \"drop\"\n  )\n\ndatatable(\n  surv_summary,\n  caption = \"Summary of overall survival by histology group and radiation therapy.\",\n  options = list(\n    pageLength = 10,\n    dom = \"Bfrtip\",\n    buttons = c(\"copy\", \"csv\", \"excel\", \"pdf\", \"print\")\n  ),\n  extensions = \"Buttons\"\n)"
+  },
+  {
+    "objectID": "index.html#radiation-therapy-is-used-more-often-than-not-and-gbm-is-more-often-treated-with-radiation-than-lgg",
+    "href": "index.html#radiation-therapy-is-used-more-often-than-not-and-gbm-is-more-often-treated-with-radiation-than-lgg",
+    "title": "Gliobastoma and Lower Grade Glioma Data Explorer",
+    "section": "Radiation therapy is used more often than not, and GBM is more often treated with radiation than LGG",
+    "text": "Radiation therapy is used more often than not, and GBM is more often treated with radiation than LGG\n\n\nCode\np_rad &lt;- gbm_cleaned_survival |&gt;\n  filter(!is.na(radiation_therapy)) |&gt;\n  ggplot(aes(x = histology_group, fill = radiation_therapy)) +\n  geom_bar(position = \"fill\") +\n  scale_y_continuous(labels = scales::percent) +\n  labs(\n    title = \"Radiation therapy usage, separated by histology group\",\n    x = \"Histology group\",\n    y = \"Proportion of patients\",\n    fill = \"Radiation therapy\"\n  ) +\n  theme_minimal()\n\nggplotly(p_rad)"
+  },
+  {
+    "objectID": "index.html#age-is-statistically-negatively-associated-with-survival",
+    "href": "index.html#age-is-statistically-negatively-associated-with-survival",
+    "title": "Gliobastoma and Lower Grade Glioma Data Explorer",
+    "section": "Age is statistically negatively associated with survival",
+    "text": "Age is statistically negatively associated with survival\n\n\nCode\ncox_data &lt;- gbm_cleaned_survival |&gt;\n  mutate(\n    histology_group = factor(histology_group, levels = c(\"LGG\", \"GBM\")),\n    radiation_therapy = fct_explicit_na(radiation_therapy, na_level = \"Missing\")\n  )\n\ncox_fit &lt;- coxph(\n  Surv(os_time_years, os_event) ~ histology_group + age + radiation_therapy,\n  data = cox_data\n)\n\n\n\n\n\nCox proportional hazards model for overall survival, adjusted for age and radiation therapy.\n\n\nPredictor\nHazard ratio\nLower 95% CI\nUpper 95% CI\np-value\n\n\n\n\nGBM vs LGG\n2.196\n1.763\n2.736\n2.31e-12\n\n\nAge (per year)\n1.036\n1.029\n1.043\n1.15e-25\n\n\nRadiation: Yes vs No\n0.456\n0.362\n0.575\n2.44e-11\n\n\nRadiation: Missing vs No\n0.488\n0.335\n0.712\n1.99e-04"
+  }
+]

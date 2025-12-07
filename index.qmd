@@ -1,0 +1,382 @@
+---
+title: "Gliobastoma and Lower Grade Glioma Data Explorer"
+format: html
+---
+
+# Introduction
+
+This is a placeholder for the main report.\
+Later, this page will contain the Introduction, Methods, Results, and Conclusion.
+
+# Research Question
+
+In this project, I asked:
+
+| *How do overall survival patterns differ between patients with Glioblastoma (GBM) and Lower Grade Glioma (LGG) in the TCGA GBMLGG cohort, and how are these patterns related to age, and the use of radiation therapy?*
+| 
+
+# Methods
+
+(Methods section placeholder.)
+
+# Results
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(janitor)
+library(survival)
+library(broom)
+library(plotly)
+library(DT)
+library(dplyr)
+library(kableExtra)
+
+histology_cols <- c(
+  "GBM" = "#D55E00",  
+  "LGG" = "#0072B2",  
+  "Other" = "grey70"  
+)
+
+gbm_data_url <- "https://tcga.xenahubs.net/download/TCGA.GBMLGG.sampleMap/GBMLGG_clinicalMatrix"
+
+gbm_raw <- read.delim(gbm_data_url, check.names = FALSE)
+
+gbm_cleaned <- gbm_raw |>
+  clean_names() |>
+  mutate(
+    age    = as.numeric(age_at_initial_pathologic_diagnosis),
+    gender = factor(gender),
+    primary_disease = primary_disease,
+    histology_group = case_when(
+      primary_disease == "glioblastoma multiforme"    ~ "GBM",
+      primary_disease == "brain lower grade glioma"   ~ "LGG",
+      TRUE                                            ~ "Other"
+    ),
+    histology = histological_type,
+    grade     = neoplasm_histologic_grade,
+    os_time_days = case_when(
+      !is.na(days_to_death) ~ as.numeric(days_to_death),
+      !is.na(days_to_last_followup) ~ as.numeric(days_to_last_followup),
+      TRUE ~ NA_real_
+    ),
+    os_time_years = os_time_days / 365.25,
+    os_event = case_when(
+      vital_status %in% c("Dead", "DECEASED") ~ 1,
+      vital_status %in% c("Alive", "LIVING") ~ 0,
+      TRUE ~ NA_real_
+    ),
+    radiation_therapy = case_when(
+      radiation_therapy == "YES" ~ "Yes",
+      radiation_therapy == "NO"  ~ "No",
+      TRUE ~ NA_character_
+    ),
+    radiation_therapy = factor(radiation_therapy),
+
+    targeted_molecular_therapy = case_when(
+      targeted_molecular_therapy == "YES" ~ "Yes",
+      targeted_molecular_therapy == "NO"  ~ "No",
+      TRUE ~ NA_character_
+    ),
+    targeted_molecular_therapy = factor(targeted_molecular_therapy),
+
+    additional_pharmaceutical_therapy = case_when(
+      additional_pharmaceutical_therapy == "YES" ~ "Yes",
+      additional_pharmaceutical_therapy == "NO"  ~ "No",
+      TRUE ~ NA_character_
+    ),
+    additional_pharmaceutical_therapy = factor(additional_pharmaceutical_therapy),
+    seizure_history       = factor(seizure_history),
+    headache_history      = factor(headache_history),
+    mental_status_changes = factor(mental_status_changes)
+  ) |>
+  select(
+    sample_id, patient_id, age, gender, histology, histology_group, grade, os_time_days,
+    os_time_years,os_event, radiation_therapy, targeted_molecular_therapy, additional_pharmaceutical_therapy, seizure_history, headache_history, mental_status_changes, tumor_location, tumor_tissue_site
+  )
+
+gbm_cleaned_survival <- gbm_cleaned |>
+  filter(
+    !is.na(age),
+    !is.na(histology_group),
+    !is.na(os_time_days),
+    !is.na(os_event)
+  )
+```
+
+## GBM is characterized by a later diagnosis age and poorer overall survival
+
+```{r, warning=FALSE, message=FALSE}
+scatter_data <- gbm_cleaned_survival |>
+  mutate(
+    histology_group = factor(histology_group, levels = c("LGG", "GBM"))
+  )
+
+p_age_surv <- ggplot(scatter_data,
+                     aes(x = age,
+                         y = os_time_years,
+                         color = histology_group,
+                         text = paste0(
+                           "Sample: ", sample_id,
+                           "<br>Histology: ", histology_group,
+                           "<br>Age: ", round(age, 1), " years",
+                           "<br>OS: ", round(os_time_years, 2), " years",
+                           "<br>Radiation: ", radiation_therapy,
+                           "<br>Event: ", ifelse(os_event == 1, "Death", "Censored")
+                         ))) +
+  geom_point(alpha = 0.6) +
+  scale_color_manual(values = histology_cols) +
+  labs(
+    title = "Age at Diagnosis vs. Overall Survival",
+    x = "Age at diagnosis (in years)",
+    y = "Overall survival (in years)",
+    color = "Histology group"
+  ) +
+  theme_minimal()
+
+ggplotly(p_age_surv, tooltip = "text")
+```
+
+## Undergoing radiation therapy is associated with better overall survival
+
+```{r, message=FALSE, warning=FALSE}
+scatter_rad <- gbm_cleaned_survival |>
+  filter(
+    histology_group %in% c("GBM", "LGG"),
+    !is.na(radiation_therapy)
+  )
+
+p_age_rad <- ggplot(
+  scatter_rad,
+  aes(
+    x     = age,
+    y     = os_time_years,
+    color = radiation_therapy,
+    text  = paste0(
+      "Sample: ", sample_id,
+      "<br>Histology: ", histology_group,
+      "<br>Radiation: ", radiation_therapy,
+      "<br>Age: ", round(age, 1), " years",
+      "<br>OS: ", round(os_time_years, 2), " years",
+      "<br>Event: ", ifelse(os_event == 1, "Death", "Censored")
+    )
+  )
+) +
+  geom_point(alpha = 0.6) +
+  facet_wrap(~ histology_group) +
+  labs(
+    title = "Age vs overall survival by radiation therapy within GBM and LGG",
+    x     = "Age at diagnosis (years)",
+    y     = "Overall survival (years)",
+    color = "Radiation therapy"
+  ) +
+  theme_minimal()
+
+ggplotly(p_age_rad, tooltip = "text")
+```
+
+## GBM has a much lower survival probability than LGG
+
+```{r, warning=FALSE, message=FALSE}
+km_fit <- survfit(Surv(os_time_years, os_event) ~ histology_group,
+                  data = gbm_cleaned_survival)
+
+km_tidy <- broom::tidy(km_fit) |>
+  mutate(
+    histology_group = str_replace(strata, "histology_group=", "")
+  )
+
+p_km <- ggplot(km_tidy,
+               aes(x = time,
+                   y = estimate,
+                   color = histology_group,
+                   group = histology_group,
+                   text = paste0(
+                     "Time: ", round(time, 2), " years",
+                     "<br>Survival probability: ", round(estimate, 3),
+                     "<br>Histology: ", histology_group,
+                     "<br>At risk: ", n.risk,
+                     "<br>Events: ", n.event
+                   ))) +
+  geom_step(size = 0.5, alpha = 0.9) +      
+  geom_point(size = 0.8, alpha = 0.9) +  
+  scale_color_manual(values = histology_cols) +
+  labs(
+    title = "Kaplan–Meier survival curves for GBM vs LGG",
+    x = "Time since diagnosis (years)",
+    y = "Estimated survival probability",
+    color = "Histology group"
+  ) +
+  theme_minimal()
+
+ggplotly(p_km, tooltip = "text")
+```
+
+## Radiation therapy has a positive impact on survival in GBM
+
+```{r, warning=FALSE, message=FALSE}
+surv_rad <- gbm_cleaned_survival |>
+  filter(
+    histology_group %in% c("GBM", "LGG"),
+    !is.na(radiation_therapy)
+  )
+
+surv_gbm <- surv_rad |> filter(histology_group == "GBM")
+surv_lgg <- surv_rad |> filter(histology_group == "LGG")
+
+logrank_gbm <- survdiff(Surv(os_time_years, os_event) ~ radiation_therapy,
+                        data = surv_gbm)
+logrank_lgg <- survdiff(Surv(os_time_years, os_event) ~ radiation_therapy,
+                        data = surv_lgg)
+
+p_gbm <- 1 - pchisq(logrank_gbm$chisq, df = length(logrank_gbm$n) - 1)
+p_lgg <- 1 - pchisq(logrank_lgg$chisq, df = length(logrank_lgg$n) - 1)
+
+subtitle_label <- paste0(
+  "GBM log-rank p = ", sprintf("%.2e", p_gbm),
+  " · LGG log-rank p = ", sprintf("%.2e", p_lgg)
+)
+
+km_gbm <- survfit(Surv(os_time_years, os_event) ~ radiation_therapy, data = surv_gbm)
+km_lgg <- survfit(Surv(os_time_years, os_event) ~ radiation_therapy, data = surv_lgg)
+
+km_gbm_tidy <- tidy(km_gbm) |>
+  mutate(histology_group = "GBM")
+
+km_lgg_tidy <- tidy(km_lgg) |>
+  mutate(histology_group = "LGG")
+
+km_rad_tidy <- bind_rows(km_gbm_tidy, km_lgg_tidy)
+
+p_km_rad <- ggplot(
+  km_rad_tidy,
+  aes(
+    x     = time,
+    y     = estimate,
+    color = strata, 
+    group = strata,
+    text  = paste0(
+      "Time: ", round(time, 2), " years",
+      "<br>Survival: ", round(estimate, 3),
+      "<br>Histology: ", histology_group,
+      "<br>Radiation: ", sub("radiation_therapy=", "", strata),
+      "<br>At risk: ", n.risk,
+      "<br>Events: ", n.event
+    )
+  )
+) +
+  geom_step(size = 1.2, alpha = 0.9) +
+  geom_point(size = 0.7, alpha = 0.9) +
+  facet_wrap(~ histology_group) +
+  scale_color_discrete(name = "Radiation group",
+                       labels = ~sub("radiation_therapy=", "", .)) +
+  labs(
+    title    = "Survival by radiation therapy within GBM and LGG",
+    subtitle = subtitle_label,
+    x        = "Time since diagnosis (years)",
+    y        = "Estimated survival probability"
+  ) +
+  theme_minimal()
+
+ggplotly(p_km_rad, tooltip = "text")
+```
+
+## The median overall survival for GBM increases dramatically when radiation therapy is used
+
+```{r, message=FALSE, warning=FALSE}
+surv_summary <- gbm_cleaned_survival |>
+  mutate(
+    radiation_therapy = fct_explicit_na(radiation_therapy, na_level = "Missing")
+  ) |>
+  group_by(histology_group, radiation_therapy) |>
+  summarize(
+    n_patients   = n(),
+    median_os    = median(os_time_years, na.rm = TRUE),
+    mean_os      = mean(os_time_years, na.rm = TRUE),
+    events       = sum(os_event == 1, na.rm = TRUE),
+    event_rate   = events / n_patients,
+    .groups = "drop"
+  )
+
+datatable(
+  surv_summary,
+  caption = "Summary of overall survival by histology group and radiation therapy.",
+  options = list(
+    pageLength = 10,
+    dom = "Bfrtip",
+    buttons = c("copy", "csv", "excel", "pdf", "print")
+  ),
+  extensions = "Buttons"
+)
+```
+
+## Radiation therapy is used more often than not, and GBM is more often treated with radiation than LGG
+
+```{r, message=FALSE, warning=FALSE}
+p_rad <- gbm_cleaned_survival |>
+  filter(!is.na(radiation_therapy)) |>
+  ggplot(aes(x = histology_group, fill = radiation_therapy)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Radiation therapy usage, separated by histology group",
+    x = "Histology group",
+    y = "Proportion of patients",
+    fill = "Radiation therapy"
+  ) +
+  theme_minimal()
+
+ggplotly(p_rad)
+
+```
+
+## Age is statistically negatively associated with survival
+
+```{r, message=FALSE, warning=FALSE}
+cox_data <- gbm_cleaned_survival |>
+  mutate(
+    histology_group = factor(histology_group, levels = c("LGG", "GBM")),
+    radiation_therapy = fct_explicit_na(radiation_therapy, na_level = "Missing")
+  )
+
+cox_fit <- coxph(
+  Surv(os_time_years, os_event) ~ histology_group + age + radiation_therapy,
+  data = cox_data
+)
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+cox_table <- broom::tidy(cox_fit, exponentiate = TRUE, conf.int = TRUE) |>
+  mutate(
+    term = dplyr::recode(
+      term,
+      "histology_groupGBM"        = "GBM vs LGG",
+      "age"                       = "Age (per year)",
+      "radiation_therapyYes"      = "Radiation: Yes vs No",
+      "radiation_therapyMissing"  = "Radiation: Missing vs No"
+    )
+  )
+
+cox_table_print <- cox_table |>
+  transmute(
+    Predictor       = term,
+    `Hazard ratio`  = round(estimate, 3),
+    `Lower 95% CI`  = round(conf.low, 3),
+    `Upper 95% CI`  = round(conf.high, 3),
+    `p-value`       = sprintf("%.2e", p.value)   # scientific notation
+  )
+
+cox_table_print |>
+  kbl(
+    caption   = "Cox proportional hazards model for overall survival, adjusted for age and radiation therapy.",
+    align     = "lcccc"   # first column left, others centered
+  ) |>
+  kable_styling(
+    full_width        = FALSE,
+    bootstrap_options = c("striped", "hover"),
+    position          = "center"
+  )
+```
+
+# Conclusion and Summary
+
+(Conclusion section placeholder.)
