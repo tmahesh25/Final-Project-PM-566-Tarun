@@ -1,0 +1,11 @@
+---
+title: "References"
+format: html
+---
+
+[1] Sipos D, Raposa BL, Freihat O, Simon M, Mekis N, Cornacchione P, Kovács Á. Glioblastoma: Clinical Presentation, Multidisciplinary Management, and Long-Term Outcomes. Cancers (Basel). 2025 Jan 5;17(1):146. doi: 10.3390/cancers17010146. PMID: 39796773; PMCID: PMC11719842.
+
+[2] Fernandes C, Costa A, Osório L, Lago RC, Linhares P, Carvalho B, Caeiro C. Current Standards of Care in Glioblastoma Therapy. In: De Vleeschouwer S, editor. Glioblastoma [Internet]. Brisbane (AU): Codon Publications; 2017 Sep 27. Chapter 11. PMID: 29251860.
+
+[3] Goldman, M.J., Craft, B., Hastie, M. et al. Visualizing and interpreting cancer genomics data via the Xena platform. Nat Biotechnol (2020). https://doi.org/10.1038/s41587-020-0546-8
+

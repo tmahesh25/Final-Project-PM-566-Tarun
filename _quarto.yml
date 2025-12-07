@@ -10,6 +10,8 @@ website:
         text: "Home"
       - href: data.qmd
         text: "About the Data"
+      - href: references.qmd
+        text: "References"
 
 format:
   html:
