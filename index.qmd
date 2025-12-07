@@ -5,19 +5,41 @@ format: html
 
 # Introduction
 
-This is a placeholder for the main report.\
-Later, this page will contain the Introduction, Methods, Results, and Conclusion.
+Gliomas are a diverse group of primary brain tumors (tumors that originate in the brain) that (debated) originate from glial cells in the Central Nervous System (CNS). Glioblastoma multiforme (GBM), the most aggressive form, accounts for approximately 45 to 50% of all primary brain cancers with an annual incidence of 3-5 cases per 100000 individuals, globally. Despite various advances in treatment strategy, including the combined use of surgery, radiation, chemotherapy and advanced techniques like Tumor Treating Fields (TTFIelds) and Immunotherapy, the median survival for GBM remains at 12-15 months, with a two-year survival rate below a grim 30%. (*Sipos D et. al., 2025*)
+
+In contrast to GBM, lower grade gliomas (LGG), follow a more, indolent, so to speak, clinical course. LGG patients have substantially better prognoses, although dependent on the molecular features and extent of surgical resection. However, over 70% of LGG cases typically transform into higher-grade tumors within a decade and often end up progressing to GBM.
+
+The difference in survival and patient outcome between GBM and LGG makes understanding what factors influence the prognosis important for clinical decisions. (*Fernandes C et. al., 2017*)
+
+Radiation therapy has long been a cornerstone of glioma treatment, though its effects vary substaintially between tumor grades. Recent research seems to suggest that radiation impacts survival very differently in GBM vs LGG. LGG patients show shorter survival after radiation, whuch may stem from the weaker DNA repair mechanisms in GBM making them more vulnerable to radiation-induced damage, while the same cannot be said for LGG.
+
+To address these critical questions about glioma survival patterns and treatment effects, I leveraged data from the The Cancer Genome Atlas (TCGA) GBMLGG Cohort, downloaded from UCSC Xena.
 
 # Research Question
 
 In this project, I asked:
 
 | *How do overall survival patterns differ between patients with Glioblastoma (GBM) and Lower Grade Glioma (LGG) in the TCGA GBMLGG cohort, and how are these patterns related to age, and the use of radiation therapy?*
-| 
+
+This question is important because it addresses a fundmantal clinical challenge in optimizing treatment strategy for two related but biologically different disease entities. By examining the differential effect of radiation on GBM vs LGG while accounting for age as a prognostic factor. Understanding which patients are most likely to benefit from radiation therapy, and under what circumstances, has direct implications for clinical decision-making, quality of life considerations, and resource allocations.
 
 # Methods
 
-(Methods section placeholder.)
+## Data Source and Cleaning
+
+All analyses used clinical data from the TCGA GBMLGG cohort, downloaded via the UCSC Xena Browser. From Xena, I used the clinical matrix for the GBMLGG cohort, which provides one row per tumor sample with demographic, histology, treatment as well as follow up information linked to each TCGA sample barcode.
+
+The raw dataset contained the data for 1148 tumors, but for this project, I focused on adult diffuse gliomas, classified int he data as either glioblastoma multifome or brain lower grade glioma. Samples with other diagnoses were retained for descriptive statistics and summaries but were excluded from the main survival analysis, which concentrated only on GBM vs LGG. I also fitered for non-missing overall survival time and vital status, and that follow-up time should be positive. After this the main survival analysis dataframe had several hundred patient data with either GBM or LGG and usable survival data.
+
+(Please see "About the Data" for more detail)
+
+## Survival Analysis and Visualization
+
+For survival analysis, I used the Kaplan–Meier estimato**r** to estimate overall survival curves by histology group (GBM vs LGG) and by radiation therapy status within each histology group. Kaplan–Meier curves were fitted using the survival package (survfit function), which provides some standard tools for survival objects and two-sample comparisons.
+
+As an additional and exploratory step, I fitted a simple Cox proportional hazards model adjusting for age and radiation therapy to quantify hazard ratios for GBM vs LGG, the results of which are presented as a summary table.
+
+To make the analysis more accessible and interactive, all primary plots were generated with ggplot2 and then converted to interactive graphics using Plotly (via ggplotly). I also created an interactive table of patient-level variables was using the DT package
 
 # Results
 
@@ -105,6 +127,8 @@ gbm_cleaned_survival <- gbm_cleaned |>
 
 ## GBM is characterized by a later diagnosis age and poorer overall survival
 
+LGG patients cluster toward younger ages with a mean dagnosis age around 40 years and have longer survival times, with many patients surviving well beyond 5 years. In contrast, GBM patients are diagnoses later in life with a mean age around 60 years and exhibit dramatically shorter survival, with most patients not surviving more than 3 years. The clear separation between these groups highlights the distinct clinical trajectories of these two subtypes, and shows that age is indeed an important prognostic indicator.
+
 ```{r, warning=FALSE, message=FALSE}
 scatter_data <- gbm_cleaned_survival |>
   mutate(
@@ -137,6 +161,8 @@ ggplotly(p_age_surv, tooltip = "text")
 ```
 
 ## Undergoing radiation therapy is associated with better overall survival
+
+When patients are stratified by radiation therapy, a clear pattern emerges. Across both GBM and LGG, patients who received radiation therapy generally show longer overall survival compared to those who did not. This effect is particularly pronounced in GBM, where radiation-treated patients show a visible shift toward longer survival times.
 
 ```{r, message=FALSE, warning=FALSE}
 scatter_rad <- gbm_cleaned_survival |>
@@ -176,16 +202,18 @@ ggplotly(p_age_rad, tooltip = "text")
 
 ## GBM has a much lower survival probability than LGG
 
+The LGG survival curve shows a gradual decline, with estimated survival probability remaining above 60% even at 5 years post diagnosis. In contrast the GBM survival curve drops sharply within the first two years, with survival probability falling below 20% by year 2 and continuing to decline after.
+
 ```{r, warning=FALSE, message=FALSE}
-km_fit <- survfit(Surv(os_time_years, os_event) ~ histology_group,
+km_fitted<- survfit(Surv(os_time_years, os_event) ~ histology_group,
                   data = gbm_cleaned_survival)
 
-km_tidy <- broom::tidy(km_fit) |>
+km_tidy <- broom::tidy(km_fitted) |>
   mutate(
     histology_group = str_replace(strata, "histology_group=", "")
   )
 
-p_km <- ggplot(km_tidy,
+plot_km <- ggplot(km_tidy,
                aes(x = time,
                    y = estimate,
                    color = histology_group,
@@ -208,25 +236,27 @@ p_km <- ggplot(km_tidy,
   ) +
   theme_minimal()
 
-ggplotly(p_km, tooltip = "text")
+ggplotly(plot_km, tooltip = "text")
 ```
 
 ## Radiation therapy has a positive impact on survival in GBM
 
+This analysis shows the differential impact of radiation therapy between tumor subtypes. In GBM patients, radiation therapy is associated with improved survival, with the radiation-treated group having higher survival probabilities throughout the follow-up period. In contrast, the LGG cohort shows a more complex pattern. Radiation therapy has a less pronounced survival benefit.
+
 ```{r, warning=FALSE, message=FALSE}
-surv_rad <- gbm_cleaned_survival |>
+survival_radiation <- gbm_cleaned_survival |>
   filter(
     histology_group %in% c("GBM", "LGG"),
     !is.na(radiation_therapy)
   )
 
-surv_gbm <- surv_rad |> filter(histology_group == "GBM")
-surv_lgg <- surv_rad |> filter(histology_group == "LGG")
+survival_gbm <- survival_radiation |> filter(histology_group == "GBM")
+survival_lgg <- survival_radiation |> filter(histology_group == "LGG")
 
 logrank_gbm <- survdiff(Surv(os_time_years, os_event) ~ radiation_therapy,
-                        data = surv_gbm)
+                        data = survival_gbm)
 logrank_lgg <- survdiff(Surv(os_time_years, os_event) ~ radiation_therapy,
-                        data = surv_lgg)
+                        data = survival_lgg)
 
 p_gbm <- 1 - pchisq(logrank_gbm$chisq, df = length(logrank_gbm$n) - 1)
 p_lgg <- 1 - pchisq(logrank_lgg$chisq, df = length(logrank_lgg$n) - 1)
@@ -236,8 +266,8 @@ subtitle_label <- paste0(
   " · LGG log-rank p = ", sprintf("%.2e", p_lgg)
 )
 
-km_gbm <- survfit(Surv(os_time_years, os_event) ~ radiation_therapy, data = surv_gbm)
-km_lgg <- survfit(Surv(os_time_years, os_event) ~ radiation_therapy, data = surv_lgg)
+km_gbm <- survfit(Surv(os_time_years, os_event) ~ radiation_therapy, data = survival_gbm)
+km_lgg <- survfit(Surv(os_time_years, os_event) ~ radiation_therapy, data = survival_lgg)
 
 km_gbm_tidy <- tidy(km_gbm) |>
   mutate(histology_group = "GBM")
@@ -247,14 +277,10 @@ km_lgg_tidy <- tidy(km_lgg) |>
 
 km_rad_tidy <- bind_rows(km_gbm_tidy, km_lgg_tidy)
 
-p_km_rad <- ggplot(
+plot_km_radiation <- ggplot(
   km_rad_tidy,
-  aes(
-    x     = time,
-    y     = estimate,
-    color = strata, 
-    group = strata,
-    text  = paste0(
+  aes(x     = time, y     = estimate, color = strata, 
+    group = strata, text  = paste0(
       "Time: ", round(time, 2), " years",
       "<br>Survival: ", round(estimate, 3),
       "<br>Histology: ", histology_group,
@@ -277,16 +303,16 @@ p_km_rad <- ggplot(
   ) +
   theme_minimal()
 
-ggplotly(p_km_rad, tooltip = "text")
+ggplotly(plot_km_radiation, tooltip = "text")
 ```
 
 ## The median overall survival for GBM increases dramatically when radiation therapy is used
 
+GBM patients who received radiation therapy achieved a median overall survival that was notably longer compared to those who did not receive radiation. The event rates show the aggressive nature of GBM, with high mortality observed across all treatment groups, though radiation therapy meaningfully extends the survival. For LGG patients, radiation therapy has different effects depending on the timing and patient characteristics.
+
 ```{r, message=FALSE, warning=FALSE}
-surv_summary <- gbm_cleaned_survival |>
-  mutate(
-    radiation_therapy = fct_explicit_na(radiation_therapy, na_level = "Missing")
-  ) |>
+survival_summary_table <- gbm_cleaned_survival |>
+  mutate(radiation_therapy = fct_explicit_na(radiation_therapy, na_level = "Missing")) |>
   group_by(histology_group, radiation_therapy) |>
   summarize(
     n_patients   = n(),
@@ -294,25 +320,21 @@ surv_summary <- gbm_cleaned_survival |>
     mean_os      = mean(os_time_years, na.rm = TRUE),
     events       = sum(os_event == 1, na.rm = TRUE),
     event_rate   = events / n_patients,
-    .groups = "drop"
-  )
+    .groups = "drop")
 
-datatable(
-  surv_summary,
+datatable(survival_summary_table,
   caption = "Summary of overall survival by histology group and radiation therapy.",
-  options = list(
-    pageLength = 10,
-    dom = "Bfrtip",
+  options = list(pageLength = 10, dom = "Bfrtip",
     buttons = c("copy", "csv", "excel", "pdf", "print")
-  ),
-  extensions = "Buttons"
-)
+),extensions = "Buttons")
 ```
 
 ## Radiation therapy is used more often than not, and GBM is more often treated with radiation than LGG
 
+In both GBM and LGG, most patients have radiation recorded, which indicates that radiation therapy is a common component of care in this cohort. But, the share of “Yes” is higher in GBM than in LGG, consistent with radiation being a standard part of first-line therapy for glioblastoma, but decisions about radiation in lower grade gliomas can be more variable.
+
 ```{r, message=FALSE, warning=FALSE}
-p_rad <- gbm_cleaned_survival |>
+plot_radiation <- gbm_cleaned_survival |>
   filter(!is.na(radiation_therapy)) |>
   ggplot(aes(x = histology_group, fill = radiation_therapy)) +
   geom_bar(position = "fill") +
@@ -325,11 +347,15 @@ p_rad <- gbm_cleaned_survival |>
   ) +
   theme_minimal()
 
-ggplotly(p_rad)
+ggplotly(plot_radiation)
 
 ```
 
 ## Age is statistically negatively associated with survival
+
+The multivariable Cox proportional hazards analysis, adjusted for multiple prognostic factors, helps to idenitfy several **independent** predictors of survival. Having GBM (vs LGG) has a 2.2 fold increased hazard of death (95% CI- 1.76 to 2.74, p \< 0.001), which confirms the worse prognosis of GBM even after accounting for other factors. Every additional year of age increases the hazard of death by around 3.6% (HR- 1.036, 95% CI- 1.03 to 1.04, p \< 0.001), showing us that older age **independently** predicts worse outcomes. What is most striking, is that receiving radiation therapy reduces the hazard of death by more than half (HR- 0.456, 95% CI- 0.36 to 0.58, p \< 0.001) compared to not receiving radiation.
+
+The Cox analysis was performed as below:
 
 ```{r, message=FALSE, warning=FALSE}
 cox_data <- gbm_cleaned_survival |>
@@ -379,4 +405,14 @@ cox_table_print |>
 
 # Conclusion and Summary
 
-(Conclusion section placeholder.)
+Clearly there are fundamental differences in the clinical behavior and treatment response patterns of GBM and LGG, with implications for prognostics and treatment decisions.
+
+My findings confirm that GBM and LGG are very distinct clinical entities with different survival outcomes. GBM patients face a significantly worse prognosis, and this survival disparity persists even after adjusting for age and treatment factors. The age difference at diagnosis adds on an additional layer of clinical complexity as younger LGG patients face the challenge of living with their disease for long time periods while simultaneously navigating treatment-related decisions and long-term morbidities.
+
+## Limitations
+
+Because this is an observational study, it cannot establish causality between treatment and outcome. There is some missing data for certain variables regarding treatment modalities beyond radiation therapy and prognostically important molecular markers like IDH mutations and 1p/19q co-deletions)
+
+This data is also not fully up-to-date with the most current treatment strategies like TTFields and Laser Interstitial Thermal Therapy. There may also be some selection bias because the TCGA patients may not fully represent the general glioma population.
+
+To conclude- This analysis provides evidence for the very distinct biological and clinical characteristics of GBM versus LGG, and shows the substantial survival benefit of radiation therapy especially in GBM, and confirms age as an independent prognostic factor across the glioma subtypes.

@@ -96,6 +96,8 @@ gbm_cleaned_survival <- gbm_cleaned |>
 
 # Data Definitions
 
+Definitions of the variables important for this study.
+
 ```{r, warning=FALSE, message=FALSE, echo=FALSE}
 
 var_dict <- tribble(
@@ -143,7 +145,7 @@ var_dict |>
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 numeric_summary <- gbm_cleaned |>
-  summarize(
+  dplyr::summarise(
     "Number of Patients"          = n(),
     "Mean Patient Age"   = mean(age, na.rm = TRUE),
     "Standard Deviation in Patient Age"     = sd(age, na.rm = TRUE),
